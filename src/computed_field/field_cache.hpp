@@ -281,7 +281,7 @@ struct cmzn_fieldcache
 private:
 	cmzn_region *region;  // accessed: not thread safe. Means region is guaranteed to exist.
 	int locationCounter; // incremented whenever domain location changes
-	int modifyCounter; // set to match region when location changes; if region value changes, cache is invalid
+	ChangeCounter fieldChangeCounter; // set to match region when location changes; if region value different, cache is invalid
 	Field_location_element_xi location_element_xi;
 	Field_location_field_values location_field_values;
 	Field_location_node location_node;
@@ -316,7 +316,7 @@ public:
 
 	inline bool hasRegionModifications() const
 	{
-		return this->modifyCounter != this->region->getFieldModifyCounter();
+		return this->fieldChangeCounter != this->region->getFieldChangeCounter();
 	}
 
 	/** private, only to be called by cmzn_fieldrange constructor */
@@ -331,12 +331,17 @@ public:
 		this->fieldranges.remove(range);
 	}
 
+	/** Call when Region fieldChangeCounter clocks over */
+	void resetFieldChangeCounter()
+	{
+		this->fieldChangeCounter = 0;
+	}
+
 	/** call whenever location changes to increment location counter
 	 * Can be called externally - e.g. by Computed_field_apply::evaluate */
 	void locationChanged()
 	{
 		++(this->locationCounter);
-		this->modifyCounter = this->region->getFieldModifyCounter();
 		// Must reset location and evaluation counters otherwise fields will not be re-evaluated
 		// Logic assumes counter will overflow back to a negative value to trigger reset
 		if (this->locationCounter < 0)
@@ -344,6 +349,8 @@ public:
 			this->locationCounter = 0;
 			this->resetValueCacheEvaluationCounters();
 		}
+		// Following allows field modification since location change to be detected
+		this->fieldChangeCounter = this->region->getFieldChangeCounter();
 	}
 
 	/** @return  True if location unchanged, otherwise false. */

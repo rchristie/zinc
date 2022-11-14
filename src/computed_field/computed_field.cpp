@@ -196,6 +196,7 @@ cmzn_field::cmzn_field() :
 	fieldparameters(nullptr),
 	manager(nullptr),
 	manager_change_status(MANAGER_CHANGE_NONE(cmzn_field)),
+	changeCounter(0),
 	attribute_flags(0),
 	access_count(1)
 {
@@ -2821,13 +2822,6 @@ struct cmzn_region *Computed_field_manager_get_region(
 	struct MANAGER(cmzn_field) *manager)
 {
 	return MANAGER_GET_OWNER(cmzn_field)(manager);
-}
-
-const cmzn_set_cmzn_field &Computed_field_manager_get_fields(
-	struct MANAGER(cmzn_field) *manager)
-{
-	return const_cast<const cmzn_set_cmzn_field&>(
-		*(reinterpret_cast<cmzn_set_cmzn_field*>(manager->object_list)));
 }
 
 struct cmzn_region *Computed_field_get_region(struct cmzn_field *field)

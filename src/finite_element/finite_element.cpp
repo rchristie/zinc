@@ -6847,14 +6847,3 @@ int FE_element_xi_increment(struct FE_element **element_address,FE_value *xi,
 
 	return (return_code);
 } /* FE_element_xi_increment */
-
-int cmzn_node_set_identifier(cmzn_node_id node, int identifier)
-{
-	if (node)
-	{
-		FE_nodeset *nodeset = node->getNodeset();
-		if (nodeset)
-			return nodeset->change_FE_node_identifier(node, identifier);
-	}
-	return CMZN_ERROR_ARGUMENT;
-}

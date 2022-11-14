@@ -358,6 +358,14 @@ public:
 		return false;
 	}
 
+	/** Notification that Region fieldChangeCounter has been reset.
+	 * Override for FiniteElement, FieldMeshLocation and any other
+	 * fields needing to manage shared caches.
+	 */
+	virtual void resetChangeCounter()
+	{
+	}
+
 protected:
 
 	// call whenever type-specific parameters are changed to notify clients
@@ -403,6 +411,8 @@ struct cmzn_field
 	/* Keep a reference to the objects manager */
 	struct MANAGER(cmzn_field) *manager;
 	int manager_change_status;
+	// current state of modifications for this field:
+	ChangeCounter changeCounter;
 
 	/** bit flag attributes. @see Computed_field_attribute_flags. */
 	int attribute_flags;
@@ -728,6 +738,15 @@ public:
 	/** @return  Non-accessed owning region */
 	inline cmzn_region *getRegion() const;
 
+	/** Region fieldChangeCounter has been reset, so this needs to be reset
+	 * and core needs notification for FE_field or clearing shared caches
+	 * such as FindMeshLocation FeMeshFieldRangesCache. */
+	void resetChangeCounter()
+	{
+		this->changeCounter = 0;
+		this->core->resetChangeCounter();
+	}
+
 }; /* struct cmzn_field */
 
 inline void Computed_field_core::beginChange() const
@@ -957,15 +976,19 @@ int Computed_field_manager_set_region(struct MANAGER(cmzn_field) *manager,
 struct cmzn_region *Computed_field_manager_get_region(
 	struct MANAGER(cmzn_field) *manager);
 
-/***************************************************************************//**
+/**
  * Gets a reference to the set of fields in the manager.
  * Intended only for immediately iterating over. Do not keep this handle.
  *
  * @param manager  Computed field manager.
  * @return  The set of fields in the manager.
  */
-const cmzn_set_cmzn_field &Computed_field_manager_get_fields(
-	struct MANAGER(cmzn_field) *manager);
+inline const cmzn_set_cmzn_field &Computed_field_manager_get_fields(
+	struct MANAGER(cmzn_field) *manager)
+{
+	return const_cast<const cmzn_set_cmzn_field&>(
+		*(reinterpret_cast<cmzn_set_cmzn_field*>(manager->object_list)));
+}
 
 inline void Computed_field_core::setChanged()
 {
@@ -976,7 +999,7 @@ inline void cmzn_field::setChanged()
 {
 	if ((this->manager) && (this->manager->owner))
 	{
-		this->manager->owner->setFieldModify();
+		this->changeCounter = this->manager->owner->setFieldChanged();
 		MANAGED_OBJECT_CHANGE(cmzn_field)(this, MANAGER_CHANGE_OBJECT_NOT_IDENTIFIER(cmzn_field));
 	}
 }
@@ -989,7 +1012,7 @@ inline void cmzn_field::setChangedPrivate(MANAGER_CHANGE(cmzn_field) change)
 		{
 			ADD_OBJECT_TO_LIST(cmzn_field)(this, this->manager->changed_object_list);
 		}
-		this->manager->owner->setFieldModify();
+		this->changeCounter = this->manager->owner->setFieldChanged();
 		this->manager_change_status |= change;
 	}
 }
@@ -998,7 +1021,7 @@ inline void cmzn_field::setChangedRelated()
 {
 	if ((this->manager) && (this->manager->owner))
 	{
-		this->manager->owner->setFieldModify();
+		this->changeCounter = this->manager->owner->setFieldChanged();
 		MANAGED_OBJECT_CHANGE(cmzn_field)(this, MANAGER_CHANGE_PARTIAL_RESULT(cmzn_field));
 	}
 }

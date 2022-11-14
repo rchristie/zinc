@@ -156,9 +156,15 @@ private:
 	// Scene gives visualisation of region content
 	cmzn_scene *scene;
 
-	// incremented if any fields are modified in the region so field caches
-	// can detect if their values are invalid.
-	int fieldModifyCounter;
+	// Incremented if any fields are changed, to detect dirty caches.
+	// Fields store value at time they are changed so per-field caches
+	// e.g. FeMeshFieldRangesCache can record value at creation time
+	// and detect if any changes have happened since.
+	// Fieldcache stores value when location changes, and can rapidly
+	// determine if value caches are invalid due to value being different
+	// for region.
+	// All caches are reset if this counter clocks back to 0.
+	ChangeCounter fieldChangeCounter;
 
 	/* increment/decrement change_level to nest changes. Message sent when zero */
 	int change_level;
@@ -237,6 +243,12 @@ private:
 
 	int mergePrivate(cmzn_region& sourceRegion);
 
+	/** Called when fieldChangeCounter cycles back to 0.
+	 * Resets all objects which depend on it to initial counter value 0.
+	 * Resets region counter value to 1 so different.
+	 */
+	void resetFieldChangeCounter();
+
 public:
 
 	inline cmzn_region *access()
@@ -265,18 +277,24 @@ public:
 		region = newRegion;
 	}
 
-	// all code which modifies values of fields must call this to ensure
-	// field caches are recalculated
-	inline void setFieldModify()
+	/** All code which changes values of fields must call this to ensure
+	 * field caches are recalculated.
+	 * Increments fieldChangeCounter, resetting if it clocks back to 0.
+	 * @return  Updated field change counter value.
+	 */
+	inline ChangeCounter setFieldChanged()
 	{
-		++(this->fieldModifyCounter);
+		if (++(this->fieldChangeCounter) == 0)
+		{
+			this->resetFieldChangeCounter();
+		}
+		return this->fieldChangeCounter;
 	}
 
-	// field caches store current value when calculating at a new location
-	// and if the region value changes then cache is invalid
-	inline int getFieldModifyCounter() const
+	/** Get current value of field modify counter */
+	inline ChangeCounter getFieldChangeCounter() const
 	{
-		return this->fieldModifyCounter;
+		return this->fieldChangeCounter;
 	}
 
 	/** begin cache changes to fields in region, not region tree structure */

@@ -132,7 +132,7 @@ cmzn_region::cmzn_region(cmzn_context* contextIn) :
 	fe_region(nullptr),
 	field_cache_size(0),
 	scene(nullptr),
-	fieldModifyCounter(0),
+	fieldChangeCounter(1),
 	change_level(0),
 	hierarchical_change_level(0),
 	regionChanged(false),
@@ -389,13 +389,6 @@ void cmzn_region::deltaTreeChange(int delta_change_level)
 
 void cmzn_region::beginChangeFields()
 {
-	// reset field value caches so always re-evaluated. See cmzn_field::evaluate()
-	for (std::list<cmzn_fieldcache_id>::iterator iter = this->field_caches.begin();
-		iter != this->field_caches.end(); ++iter)
-	{
-		cmzn_fieldcache_id cache = *iter;
-		cache->resetValueCacheEvaluationCounters();
-	}
 	MANAGER_BEGIN_CACHE(Computed_field)(this->field_manager);
 	FE_region_begin_change(this->fe_region);
 }
@@ -1221,6 +1214,25 @@ int cmzn_region::merge(cmzn_region& sourceRegion)
 	int return_code = this->mergePrivate(sourceRegion);
 	this->endHierarchicalChange();
 	return return_code;
+}
+
+void cmzn_region::resetFieldChangeCounter()
+{
+	// reset field value caches to counter 0 so always re-evaluated
+	for (std::list<cmzn_fieldcache_id>::iterator iter = this->field_caches.begin();
+		iter != this->field_caches.end(); ++iter)
+	{
+		cmzn_fieldcache_id cache = *iter;
+		cache->resetFieldChangeCounter();
+	}
+	// reset fields to counter 0 and clear any shared caches depending on them
+	const cmzn_set_cmzn_field& fields = Computed_field_manager_get_fields(this->field_manager);
+	for (cmzn_set_cmzn_field::const_iterator iter = fields.begin(); iter != fields.end(); ++iter)
+	{
+		cmzn_field *field = *iter;
+		field->resetChangeCounter();
+	}
+	this->fieldChangeCounter = 1;  // so 1 higher than caches or fields
 }
 
 /*

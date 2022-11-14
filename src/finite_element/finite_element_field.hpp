@@ -78,6 +78,9 @@ protected:
 
 private:
 	FE_region *fe_region;  // owning FE_region, not accessed
+	// increment and record current Region fieldChangeCounter whenever
+	// field is changed, so can detect invalid caches built earlier
+	ChangeCounter changeCounter;
 	enum CM_field_type cm_field_type;  // anatomical/coordinate/general
 	enum FE_field_type fe_field_type;  // constant/general/indexed
 	/* following two for INDEXED_FE_FIELD only */
@@ -175,6 +178,21 @@ public:
 	FE_region *get_FE_region() const
 	{
 		return this->fe_region;
+	}
+
+	void setChangeCounter(ChangeCounter newChangeCounter)
+	{
+		this->changeCounter = newChangeCounter;
+	}
+
+	ChangeCounter getChangeCounter() const
+	{
+		return this->changeCounter;
+	}
+
+	void resetChangeCounter()
+	{
+		this->changeCounter = 0;
 	}
 
 	const char *getName() const

@@ -1102,11 +1102,6 @@ public:
 		return this->labels.hasIndex(elementIndex);
 	}
 
-	inline DsLabelIdentifier getElementIdentifier(DsLabelIndex elementIndex) const
-	{
-		return this->labels.getIdentifier(elementIndex);
-	}
-
 	/** @return  Non-accessed element object at index */
 	inline cmzn_element *getElement(DsLabelIndex elementIndex) const
 	{
@@ -1145,6 +1140,12 @@ public:
 
 	int for_each_FE_element(LIST_ITERATOR_FUNCTION(cmzn_element) iterator_function, void *user_data_void);
 
+	inline DsLabelIdentifier getElementIdentifier(DsLabelIndex elementIndex) const
+	{
+		return this->labels.getIdentifier(elementIndex);
+	}
+
+	/** Client must ensure elementIndex is valid for this mesh */
 	int setElementIdentifier(DsLabelIndex elementIndex, int identifier);
 
 	FE_element_template *create_FE_element_template(FE_element_shape *element_shape = 0);

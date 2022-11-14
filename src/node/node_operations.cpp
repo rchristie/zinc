@@ -287,14 +287,14 @@ int cmzn_nodeset_change_node_identifiers(cmzn_nodeset_id nodeset,
 								{
 									next_spare_node_number++;
 								}
-								if (!fe_nodeset->change_FE_node_identifier(
-									node_with_identifier, next_spare_node_number))
+								if (!fe_nodeset->setNodeIdentifier(
+									node_with_identifier->getIndex(), next_spare_node_number))
 								{
 									return_code = 0;
 								}
 							}
-							if (!fe_nodeset->change_FE_node_identifier(
-								node_values[i].node, node_values[i].new_number))
+							if (!fe_nodeset->setNodeIdentifier(
+								node_values[i].node->getIndex(), node_values[i].new_number))
 							{
 								display_message(ERROR_MESSAGE,
 									"cmzn_nodeset_change_node_identifiers.  "

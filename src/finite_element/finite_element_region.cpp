@@ -183,6 +183,20 @@ void FE_region::updateRegion()
 	}
 }
 
+void FE_region::FE_field_all_change(enum CHANGE_LOG_CHANGE(FE_field) change)
+{
+	if (this->cmiss_region)
+	{
+		const ChangeCounter changeCounter = this->cmiss_region->setFieldChanged();
+		cmzn_set_FE_field *fields = reinterpret_cast<cmzn_set_FE_field*>(this->fe_field_list);
+		for (cmzn_set_FE_field::iterator field_iter = fields->begin(); field_iter != fields->end(); ++field_iter)
+		{
+			CHANGE_LOG_OBJECT_CHANGE(FE_field)(this->fe_field_changes, *field_iter, change);
+			(*field_iter)->setChangeCounter(changeCounter);
+		}
+	}
+}
+
 cmzn_fielditerator *FE_region::create_fielditerator()
 {
 	return this->cmiss_region->createFielditerator();
@@ -284,7 +298,6 @@ void FE_region::createFieldChangeLog()
 struct CHANGE_LOG(FE_field) *FE_region::extractFieldChangeLog()
 {
 	struct CHANGE_LOG(FE_field) *returnChangeLog = this->fe_field_changes;
-	CHANGE_LOG_MERGE_ALL_CHANGE(FE_field)(returnChangeLog);
 	this->createFieldChangeLog();
 	return returnChangeLog;
 }

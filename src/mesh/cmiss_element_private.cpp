@@ -518,9 +518,6 @@ int cmzn_elementtemplate::setLegacyNodesInElement(cmzn_element *element)
 			}
 		}
 	}
-	// simplest to mark all fields as changed as they may share local nodes and scale factors
-	// can optimise in future
-	mesh->get_FE_region()->FE_field_all_change(CHANGE_LOG_RELATED_OBJECT_CHANGED(FE_field));
 	return CMZN_OK;
 }
 

@@ -87,6 +87,7 @@ Global functions
 FE_field::FE_field() :
 	name(nullptr),
 	fe_region(nullptr),
+	changeCounter(0),
 	cm_field_type(CM_GENERAL_FIELD),
 	fe_field_type(GENERAL_FE_FIELD),
 	indexer_field(nullptr),
@@ -112,6 +113,7 @@ FE_field::FE_field() :
 FE_field::FE_field(const char *nameIn, struct FE_region *fe_regionIn) :
 	name(duplicate_string(nameIn)),
 	fe_region(fe_regionIn),
+	changeCounter(0),
 	cm_field_type(CM_GENERAL_FIELD),
 	fe_field_type(GENERAL_FE_FIELD),
 	indexer_field(nullptr),

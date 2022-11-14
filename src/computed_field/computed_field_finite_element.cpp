@@ -433,6 +433,11 @@ public:
 		return false;
 	}
 
+	virtual void resetChangeCounter()
+	{
+		this->fe_field->resetChangeCounter();
+	}
+
 private:
 	Computed_field_core *copy();
 
@@ -3714,6 +3719,12 @@ public:
 		if (this->field == other_field)
 			return true;
 		return this->getSourceField()->core->is_purely_function_of_field(other_field);
+	}
+
+	virtual void resetChangeCounter()
+	{
+		// clear ranges cache so guaranteed to be rebuilt
+		this->meshFieldRangesCache->clearRanges();
 	}
 
 private:

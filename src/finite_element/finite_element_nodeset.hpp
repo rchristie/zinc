@@ -364,7 +364,6 @@ private:
 	block_array<DsLabelIndex, ElementUsageCountType> elementUsageCount;
 
 	std::list<FE_node_field_info*> node_field_info_list;
-	struct FE_node_field_info *last_fe_node_field_info;
 
 	// list of node iterators to invalidate when nodeset destroyed
 	cmzn_nodeiterator *activeNodeIterators;
@@ -374,8 +373,6 @@ private:
 	FE_nodeset(FE_region *fe_regionIn);
 
 	virtual ~FE_nodeset();
-
-	virtual void createChangeLog();
 
 	void beginDestroyNodes();
 
@@ -457,11 +454,6 @@ public:
 		return this->labels.getSize();
 	}
 
-	inline DsLabelIdentifier getNodeIdentifier(DsLabelIndex nodeIndex) const
-	{
-		return this->labels.getIdentifier(nodeIndex);
-	}
-
 	/** @return  Non-accessed node object at index */
 	inline cmzn_node *getNode(DsLabelIndex nodeIndex) const
 	{
@@ -495,7 +487,13 @@ public:
 
 	int for_each_FE_node(LIST_ITERATOR_FUNCTION(cmzn_node) iterator_function, void *user_data_void);
 
-	int change_FE_node_identifier(cmzn_node *node, DsLabelIdentifier new_identifier);
+	inline DsLabelIdentifier getNodeIdentifier(DsLabelIndex nodeIndex) const
+	{
+		return this->labels.getIdentifier(nodeIndex);
+	}
+
+	/** Client must ensure nodeIndex is valid for this nodeset */
+	int setNodeIdentifier(DsLabelIndex nodeIndex, int identifier);
 
 	FE_node_template *create_FE_node_template(cmzn_node *node);
 

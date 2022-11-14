@@ -81,11 +81,20 @@ bool FE_node_field_info::hasMatchingNodeFieldList(struct LIST(FE_node_field) *no
 
 namespace {
 
+	struct FE_node_field_log_FE_field_change_related_data
+	{
+		FE_region *fe_region;
+		const ChangeCounter fieldChangeCounter;
+	};
+
 	/** Log field in <node_field> as RELATED_OBJECT_CHANGED in FE_region. */
 	int FE_node_field_log_FE_field_change_related(
-		struct FE_node_field *node_field, void *fe_region_void)
+		struct FE_node_field *node_field, void *data_void)
 	{
-		static_cast<FE_region *>(fe_region_void)->FE_field_change_related(node_field->field, CHANGE_LOG_RELATED_OBJECT_CHANGED(FE_field));
+		FE_node_field_log_FE_field_change_related_data *data =
+			static_cast<FE_node_field_log_FE_field_change_related_data *>(data_void);
+		node_field->field->setChangeCounter(data->fieldChangeCounter);
+		data->fe_region->FE_field_change_related(node_field->field, CHANGE_LOG_RELATED_OBJECT_CHANGED(FE_field));
 		return 1;
 	}
 
@@ -93,9 +102,13 @@ namespace {
 
 void FE_node_field_info::logFieldsChangeRelated(FE_region *fe_region) const
 {
-	FOR_EACH_OBJECT_IN_LIST(FE_node_field)(
-		FE_node_field_log_FE_field_change_related, static_cast<void *>(fe_region),
-		this->node_field_list);
+	if (fe_region->getRegion())
+	{
+		FE_node_field_log_FE_field_change_related_data data = { fe_region, fe_region->getRegion()->setFieldChanged() };
+		FOR_EACH_OBJECT_IN_LIST(FE_node_field)(
+			FE_node_field_log_FE_field_change_related, static_cast<void *>(&data),
+			this->node_field_list);
+	}
 }
 
 cmzn_node::~cmzn_node()
@@ -187,7 +200,6 @@ FE_node_template::~FE_node_template()
 FE_nodeset::FE_nodeset(FE_region *fe_regionIn) :
 	FE_domain(fe_regionIn, /*dimensionIn*/0),
 	domainType(CMZN_FIELD_DOMAIN_TYPE_INVALID),
-	last_fe_node_field_info(0),
 	activeNodeIterators(0)
 {
 	this->createChangeLog();
@@ -197,7 +209,6 @@ FE_nodeset::~FE_nodeset()
 {
 	// must remove change log here to avoid messages during cleanup
 	cmzn::Deaccess(this->changeLog);
-	this->last_fe_node_field_info = 0;
 
 	// remove pointers to this FE_nodeset as destroying
 	cmzn_nodeiterator *nodeIterator = this->activeNodeIterators;
@@ -214,13 +225,6 @@ FE_nodeset::~FE_nodeset()
 	{
 		(*iter)->nodeset = nullptr;
 	}
-}
-
-/** Private: assumes current change log pointer is null or invalid */
-void FE_nodeset::createChangeLog()
-{
-	this->FE_domain::createChangeLog();
-	this->last_fe_node_field_info = 0;
 }
 
 /**
@@ -400,8 +404,6 @@ struct FE_node_field_info *FE_nodeset::clone_FE_node_field_info(
  */
 void FE_nodeset::remove_FE_node_field_info(struct FE_node_field_info *fe_node_field_info)
 {
-	if (fe_node_field_info == this->last_fe_node_field_info)
-		this->last_fe_node_field_info = 0;
 	this->node_field_info_list.remove(fe_node_field_info);
 }
 
@@ -454,12 +456,12 @@ cmzn_nodeiterator *FE_nodeset::createNodeiterator(DsLabelsGroup *labelsGroup)
 }
 
 /**
-* Call this to mark node with the supplied change.
+* Call this to mark node with the supplied change not affecting fields.
 * Notifies change to clients of FE_region.
 */
 void FE_nodeset::nodeChange(DsLabelIndex nodeIndex, int change)
 {
-	if (this->fe_region && this->changeLog)
+	if ((this->fe_region) && (this->changeLog))
 	{
 		this->changeLog->setIndexChange(nodeIndex, change);
 		this->fe_region->FE_region_change();
@@ -477,17 +479,11 @@ void FE_nodeset::nodeChange(DsLabelIndex nodeIndex, int change)
 */
 void FE_nodeset::nodeChange(DsLabelIndex nodeIndex, int change, cmzn_node *field_info_node)
 {
-	if (this->fe_region && this->changeLog && field_info_node)
+	if ((this->fe_region) && (this->changeLog) && (field_info_node))
 	{
 		this->changeLog->setIndexChange(nodeIndex, change);
-		// for efficiency, the following marks field changes only if field info is different from last
-		struct FE_node_field_info *temp_fe_node_field_info = field_info_node->getNodeFieldInfo();
-		if (temp_fe_node_field_info != this->last_fe_node_field_info)
-		{
-			this->last_fe_node_field_info = temp_fe_node_field_info;
-			temp_fe_node_field_info->logFieldsChangeRelated(this->fe_region);
-		}
-		this->fe_region->FE_region_change();
+		// need to mark changes for all fields of field_info_node
+		field_info_node->getNodeFieldInfo()->logFieldsChangeRelated(this->fe_region);
 		this->fe_region->update();
 	}
 }
@@ -498,7 +494,7 @@ void FE_nodeset::nodeChange(DsLabelIndex nodeIndex, int change, cmzn_node *field
  */
 void FE_nodeset::nodeFieldChange(cmzn_node *node, FE_field *fe_field)
 {
-	if (this->fe_region && this->changeLog)
+	if ((this->fe_region) && (this->changeLog))
 	{
 		this->changeLog->setIndexChange(node->getIndex(), DS_LABEL_CHANGE_TYPE_RELATED);
 		fe_region->FE_field_change(fe_field, CHANGE_LOG_RELATED_OBJECT_CHANGED(FE_field));
@@ -601,34 +597,30 @@ void FE_nodeset::clear()
 	this->FE_domain::clear();
 }
 
-int FE_nodeset::change_FE_node_identifier(cmzn_node *node, DsLabelIdentifier new_identifier)
+int FE_nodeset::setNodeIdentifier(DsLabelIndex nodeIndex, int identifier)
 {
-	if ((FE_node_get_FE_nodeset(node) == this) && (new_identifier >= 0))
+	if ((this->getNodeIdentifier(nodeIndex) >= 0) && (identifier >= 0))
 	{
-		const DsLabelIndex nodeIndex = node->getIndex();
-		const DsLabelIdentifier currentIdentifier = this->getNodeIdentifier(nodeIndex);
-		if (currentIdentifier >= 0)
+		int return_code = this->labels.setIdentifier(nodeIndex, identifier);
+		if (return_code == CMZN_OK)
 		{
-			int return_code = this->labels.setIdentifier(nodeIndex, new_identifier);
-			if (return_code == CMZN_OK)
-				this->nodeIdentifierChange(node);
-			else if (return_code == CMZN_ERROR_ALREADY_EXISTS)
-				display_message(ERROR_MESSAGE, "FE_nodeset::change_FE_node_identifier.  Identifier %d is already used in nodeset",
-					new_identifier);
-			else
-				display_message(ERROR_MESSAGE, "FE_nodeset::change_FE_node_identifier.  Failed to set label identifier");
-			return return_code;
+			this->nodeChange(nodeIndex, DS_LABEL_CHANGE_TYPE_IDENTIFIER);
+		}
+		else if (return_code == CMZN_ERROR_ALREADY_EXISTS)
+		{
+			display_message(ERROR_MESSAGE, "FE_nodeset::setNodeIdentifier.  Identifier %d is already used in nodeset",
+				identifier);
 		}
 		else
 		{
-			display_message(ERROR_MESSAGE,
-				"FE_nodeset::change_FE_node_identifier.  node is not in this nodeset");
+			display_message(ERROR_MESSAGE, "FE_nodeset::setNodeIdentifier.  Failed to set label identifier");
 		}
+		return return_code;
 	}
 	else
 	{
 		display_message(ERROR_MESSAGE,
-			"FE_nodeset::change_FE_node_identifier.  Invalid argument(s)");
+			"FE_nodeset::setNodeIdentifier.  Invalid argument(s)");
 	}
 	return CMZN_ERROR_ARGUMENT;
 }

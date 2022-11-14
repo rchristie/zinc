@@ -2072,12 +2072,18 @@ int FE_mesh::setElementIdentifier(DsLabelIndex elementIndex, int identifier)
 	{
 		int return_code = this->labels.setIdentifier(elementIndex, identifier);
 		if (return_code == CMZN_OK)
+		{
 			this->elementChange(elementIndex, DS_LABEL_CHANGE_TYPE_IDENTIFIER);
+		}
 		else if (return_code == CMZN_ERROR_ALREADY_EXISTS)
+		{
 			display_message(ERROR_MESSAGE, "FE_mesh::setElementIdentifier.  Identifier %d is already used in %d-D mesh",
 				identifier, this->dimension);
+		}
 		else
+		{
 			display_message(ERROR_MESSAGE, "FE_mesh::setElementIdentifier.  Failed to set label identifier");
+		}
 		return return_code;
 	}
 	display_message(ERROR_MESSAGE, "FE_mesh::setElementIdentifier.  Invalid argument(s)");

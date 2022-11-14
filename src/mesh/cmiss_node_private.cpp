@@ -1191,7 +1191,24 @@ int cmzn_node_destroy(cmzn_node_id *node_address)
 
 int cmzn_node_get_identifier(cmzn_node_id node)
 {
-	return get_FE_node_identifier(node);
+	if (node)
+	{
+		return node->getIdentifier();
+	}
+	return DS_LABEL_IDENTIFIER_INVALID;
+}
+
+int cmzn_node_set_identifier(cmzn_node_id node, int identifier)
+{
+	if (node)
+	{
+		FE_nodeset *nodeset = node->getNodeset();
+		if (nodeset)
+		{
+			return nodeset->setNodeIdentifier(node->getIndex(), identifier);
+		}
+	}
+	return CMZN_ERROR_ARGUMENT;
 }
 
 cmzn_nodeset_id cmzn_node_get_nodeset(cmzn_node_id node)
