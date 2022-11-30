@@ -2646,6 +2646,7 @@ int define_FE_field_at_node(cmzn_node *node, FE_field *field,
 					"Field already defined incompatibly at node.");
 			}
 		}
+		DESTROY_LIST(FE_node_field)(&new_node_field_list);
 		if (existing_time_sequence)
 		{
 			DEACCESS(FE_time_sequence)(&existing_time_sequence);
