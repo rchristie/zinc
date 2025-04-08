@@ -808,7 +808,7 @@ int Minimisation::minimise_Newton()
 		display_message(INFORMATION_MESSAGE, "Main diagonal:");
 		for (int i = 0; i < solveParameterCount; ++i)
 		{
-			const int globalIndex = globalParameterIndex[i];
+			const int globalIndex = (conditionalFieldInternal) ? globalParameterIndex[i] : i;
 			cmzn_node_value_label valueLabel;
 			int fieldComponent, version;
 			cmzn_node* node = fieldparametersInternal->getNodeParameter(globalIndex, fieldComponent, valueLabel, version);
