@@ -25,7 +25,9 @@
 #include <cmlibs/zinc/context.hpp>
 #include <cmlibs/zinc/element.hpp>
 #include <cmlibs/zinc/field.hpp>
+#include <cmlibs/zinc/fieldcache.hpp>
 #include <cmlibs/zinc/fieldconstant.hpp>
+#include <cmlibs/zinc/fieldfiniteelement.hpp>
 #include <cmlibs/zinc/fieldgroup.hpp>
 #include <cmlibs/zinc/fieldlogicaloperators.hpp>
 #include <cmlibs/zinc/fieldmodule.hpp>
@@ -497,7 +499,7 @@ TEST(ZincMesh, destroyElementsGroupChangeManager_simple)
 }
 
 // Test destroying an element with embedded location after reading twice.
-// Tests read/merge code properly maintains element to embedded node maps.
+// Test read/merge code properly maintains element-to-embedded node maps.
 TEST(ZincMesh, destroyElement_embeddedLocation)
 {
 	ZincTestSetupCpp zinc;
@@ -509,6 +511,38 @@ TEST(ZincMesh, destroyElement_embeddedLocation)
 	Element element1 = mesh1d.findElementByIdentifier(1);
 	EXPECT_TRUE(element1.isValid());
 	EXPECT_EQ(RESULT_OK, mesh1d.destroyElement(element1));
+}
+
+// Test node merge maintains element-to-embedded node maps.
+TEST(ZincNode, merge_embeddedLocation)
+{
+	ZincTestSetupCpp zinc;
+
+	EXPECT_EQ(RESULT_OK, zinc.root_region.readFile(resourcePath("optimisation/fit_line_time.exf").c_str()));
+
+	Mesh mesh1d = zinc.fm.findMeshByDimension(1);
+	Element element1 = mesh1d.findElementByIdentifier(1);
+	EXPECT_TRUE(element1.isValid());
+	const double xi = 0.5;
+	Nodeset datapoints = zinc.fm.findNodesetByFieldDomainType(Field::DOMAIN_TYPE_DATAPOINTS);
+	Node datapoint2 = datapoints.findNodeByIdentifier(2);
+	EXPECT_TRUE(datapoint2.isValid());
+	FieldStoredMeshLocation hostLocation = zinc.fm.findFieldByName("host_location").castStoredMeshLocation();
+
+	Nodetemplate nodetemplate = datapoints.createNodetemplate();
+	EXPECT_EQ(RESULT_OK, nodetemplate.defineField(hostLocation));
+	// before fix, the following orphans map from element back to node, so another can be added
+	EXPECT_EQ(RESULT_OK, datapoint2.merge(nodetemplate));
+
+	Fieldcache fieldcache = zinc.fm.createFieldcache();
+	EXPECT_EQ(RESULT_OK, fieldcache.setNode(datapoint2));
+	// before fix, the following adds a second map back from element to the same node
+	EXPECT_EQ(RESULT_OK, hostLocation.assignMeshLocation(fieldcache, element1, 1, &xi));
+
+	// before fix the following would be an infinite loop
+	EXPECT_EQ(RESULT_OK, mesh1d.destroyElement(element1));
+
+	// also test merge with undefine
 }
 
 // Test destroying 3D element removes it and all orphaned faces from groups,

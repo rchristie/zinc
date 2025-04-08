@@ -4291,8 +4291,13 @@ static int FE_node_field_undefine_nonmatching_FE_field_at_node(FE_node_field *no
 		const int componentCount = field->getNumberOfComponents();
 		// undefine if any component does not match
 		for (int c = 0; c < componentCount; ++c)
-			if (!existing_node_field->getComponent(c)->matches(*node_field->getComponent(c)))
+		{
+			const bool match = existing_node_field->getComponent(c)->matches(*node_field->getComponent(c));
+			if (!match)
+			{
 				return (CMZN_OK == undefine_FE_field_at_node(node, field)) ? 1 : 0;
+			}
+		}
 	}
 	return 1;
 }
